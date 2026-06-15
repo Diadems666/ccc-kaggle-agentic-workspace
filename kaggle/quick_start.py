@@ -141,20 +141,22 @@ else:
 # ── Step 4: Start LLM server in background ───────────────────────────────────
 step(4, "Starting LLM inference server")
 
+_SERVER_LOG = "/tmp/llm_server.log"
 server_proc = [None]
 
 def _run_server():
-    server_proc[0] = subprocess.Popen(
-        ["bash", f"{WORKSPACE_DIR}/kaggle/start_llama_server.sh"],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
-    )
-    for line in iter(server_proc[0].stdout.readline, ""):
-        pass  # absorb output silently
+    with open(_SERVER_LOG, "w", buffering=1) as log:
+        server_proc[0] = subprocess.Popen(
+            ["bash", f"{WORKSPACE_DIR}/kaggle/start_llama_server.sh"],
+            stdout=log, stderr=subprocess.STDOUT, text=True
+        )
+        server_proc[0].wait()
 
 threading.Thread(target=_run_server, daemon=True).start()
 
 # Poll until ready
 print(f"  Waiting for server on localhost:{LOCAL_LLM_PORT}...")
+print(f"  (server log: {_SERVER_LOG})")
 ready = False
 for i in range(72):  # up to 6 minutes
     time.sleep(5)
@@ -171,7 +173,17 @@ for i in range(72):  # up to 6 minutes
             print(f"  Still loading... {(i+1)*5}s elapsed")
 
 if not ready:
-    print("  WARNING: Server did not respond in 6 min. Opening tunnel anyway.")
+    print("  WARNING: Server did not respond in 6 min.")
+    try:
+        with open(_SERVER_LOG) as _f:
+            _tail = _f.readlines()[-30:]
+        print("  --- Last server log lines ---")
+        for _line in _tail:
+            print(f"  {_line.rstrip()}")
+        print("  --- End log ---")
+    except Exception as _e:
+        print(f"  (could not read server log: {_e})")
+    print("  Opening tunnel anyway.")
 
 # ── Step 5: Configure MiMo Code agent harness ────────────────────────────────
 step(5, "Configuring MiMo Code")

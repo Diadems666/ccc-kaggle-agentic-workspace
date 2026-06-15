@@ -18,21 +18,17 @@ THREADS="${THREADS:-4}"
 GPU_COUNT=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | wc -l || echo 1)
 
 if [[ "$GPU_COUNT" -ge 2 ]]; then
-    CONTEXT_SIZE="${CONTEXT_SIZE:-16384}"
-    # Split model evenly across both T4s — each holds half the layers
-    TENSOR_SPLIT="${TENSOR_SPLIT:-1,1}"
-    echo "=== Starting llama.cpp server (dual T4, tensor split) ==="
+    CONTEXT_SIZE="${CONTEXT_SIZE:-8192}"
+    echo "=== Starting llama.cpp server (dual T4 — CUDA auto-distributes) ==="
 else
     CONTEXT_SIZE="${CONTEXT_SIZE:-8192}"
-    TENSOR_SPLIT="${TENSOR_SPLIT:-}"
     echo "=== Starting llama.cpp server (single T4) ==="
 fi
 
 echo "Model:    $MODEL_PATH"
 echo "Host:     $HOST:$PORT"
 echo "Context:  $CONTEXT_SIZE tokens"
-echo "GPUs:     $GPU_COUNT (layers=${N_GPU_LAYERS})"
-[[ -n "$TENSOR_SPLIT" ]] && echo "Split:    $TENSOR_SPLIT"
+echo "GPUs:     $GPU_COUNT (n_gpu_layers=${N_GPU_LAYERS})"
 echo ""
 
 if [[ ! -f "$MODEL_PATH" ]]; then
@@ -41,12 +37,8 @@ if [[ ! -f "$MODEL_PATH" ]]; then
     exit 1
 fi
 
-# Build arg list — only add tensor_split on dual GPU
-EXTRA_ARGS=()
-if [[ -n "$TENSOR_SPLIT" ]]; then
-    EXTRA_ARGS+=(--tensor_split "$TENSOR_SPLIT")
-fi
-
+# n_gpu_layers=-1 offloads all layers; CUDA backend distributes across
+# all visible GPUs automatically without explicit tensor_split.
 python3 -m llama_cpp.server \
     --model "$MODEL_PATH" \
     --host "$HOST" \
@@ -57,5 +49,4 @@ python3 -m llama_cpp.server \
     --n_batch 512 \
     --parallel "$PARALLEL" \
     --chat_format chatml \
-    --verbose false \
-    "${EXTRA_ARGS[@]}"
+    --verbose true
