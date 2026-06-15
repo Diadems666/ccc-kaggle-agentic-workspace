@@ -11,7 +11,6 @@ MODEL_PATH="${MODEL_DIR}/${MODEL_NAME}"
 PORT="${LOCAL_LLM_PORT:-8080}"
 HOST="${LOCAL_LLM_HOST:-127.0.0.1}"
 N_GPU_LAYERS="${N_GPU_LAYERS:--1}"
-PARALLEL="${PARALLEL:-4}"
 THREADS="${THREADS:-4}"
 
 # ─── Detect GPU count and configure accordingly ───────────────────────────────
@@ -47,6 +46,5 @@ python3 -m llama_cpp.server \
     --n_gpu_layers "$N_GPU_LAYERS" \
     --n_threads "$THREADS" \
     --n_batch 512 \
-    --parallel "$PARALLEL" \
     --chat_format chatml \
     --verbose true
