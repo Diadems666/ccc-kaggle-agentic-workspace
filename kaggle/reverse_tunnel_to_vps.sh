@@ -1,18 +1,9 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Do NOT use set -e — SSH failure must not kill the reconnect loop.
+set -uo pipefail
 
 # Open SSH reverse tunnel from Kaggle notebook to VPS.
 # After this runs, VPS port $VPS_TUNNEL_PORT forwards to Kaggle port $LOCAL_LLM_PORT.
-#
-# Required env vars:
-#   VPS_HOST              — VPS IP or hostname
-#   KAGGLE_TUNNEL_KEY_PATH — path to SSH private key (default: /tmp/kaggle_tunnel_key)
-#
-# Optional:
-#   VPS_USER              — SSH user on VPS (default: kaggle-gpu)
-#   VPS_PORT              — SSH port on VPS (default: 22)
-#   LOCAL_LLM_PORT        — LLM server port on Kaggle (default: 8080)
-#   VPS_TUNNEL_PORT       — port to expose on VPS (default: 8081)
 
 VPS_HOST="${VPS_HOST:?VPS_HOST not set. Export VPS_HOST=your.vps.ip}"
 VPS_USER="${VPS_USER:-kaggle-gpu}"
@@ -20,6 +11,7 @@ VPS_PORT="${VPS_PORT:-22}"
 KEY_PATH="${KAGGLE_TUNNEL_KEY_PATH:-/tmp/kaggle_tunnel_key}"
 LOCAL_PORT="${LOCAL_LLM_PORT:-8080}"
 REMOTE_PORT="${VPS_TUNNEL_PORT:-8081}"
+SSH_LOG="/tmp/tunnel_ssh.log"
 
 echo "=== Opening reverse SSH tunnel ==="
 echo "Local:   localhost:$LOCAL_PORT (Kaggle LLM)"
@@ -30,7 +22,6 @@ echo ""
 
 if [[ ! -f "$KEY_PATH" ]]; then
     echo "ERROR: SSH key not found at $KEY_PATH"
-    echo "Load the key from Kaggle secrets before running this script."
     exit 1
 fi
 chmod 600 "$KEY_PATH"
@@ -55,10 +46,16 @@ echo "Opening tunnel (Ctrl+C to close)..."
 echo "Once connected, test from VPS: curl http://localhost:$REMOTE_PORT/v1/models"
 echo ""
 
-# Open the reverse tunnel with auto-reconnect loop
+ATTEMPT=0
 while true; do
+    ATTEMPT=$((ATTEMPT + 1))
+    echo "[attempt $ATTEMPT] Connecting to $VPS_USER@$VPS_HOST..."
+    > "$SSH_LOG"
+
+    # Use explicit 'localhost:PORT' bind address — avoids ambiguity when the SSH
+    # client sends an empty bind string that some sshd configs reject.
     ssh -N \
-        -R "${REMOTE_PORT}:localhost:${LOCAL_PORT}" \
+        -R "localhost:${REMOTE_PORT}:localhost:${LOCAL_PORT}" \
         -i "$KEY_PATH" \
         -p "$VPS_PORT" \
         -o StrictHostKeyChecking=no \
@@ -66,9 +63,12 @@ while true; do
         -o ServerAliveCountMax=3 \
         -o ConnectTimeout=15 \
         -o ExitOnForwardFailure=yes \
-        "${VPS_USER}@${VPS_HOST}"
+        -o LogLevel=VERBOSE \
+        "${VPS_USER}@${VPS_HOST}" 2>>"$SSH_LOG" \
+    && EXIT_CODE=0 || EXIT_CODE=$?
 
-    EXIT_CODE=$?
-    echo "Tunnel dropped (exit code $EXIT_CODE). Reconnecting in 10 seconds..."
+    echo "[attempt $ATTEMPT] Tunnel exited (code $EXIT_CODE). Last SSH log:"
+    tail -10 "$SSH_LOG" | sed 's/^/  /'
+    echo "Reconnecting in 10 seconds..."
     sleep 10
 done
