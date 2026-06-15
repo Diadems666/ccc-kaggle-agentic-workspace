@@ -1,0 +1,64 @@
+{
+  "_comment": "Example configuration for local LLM provider when Kaggle GPU tunnel is active. Copy relevant sections into your tool's config.",
+
+  "provider": {
+    "name": "local-kaggle",
+    "type": "openai-compatible",
+    "base_url": "http://localhost:8081/v1",
+    "api_key": "local",
+    "description": "Kaggle T4 GPU via reverse SSH tunnel on VPS port 8081"
+  },
+
+  "models": {
+    "default": "qwen2.5-coder-7b-instruct",
+    "available": [
+      {
+        "id": "qwen2.5-coder-7b-instruct",
+        "description": "Qwen2.5 Coder 7B — best code quality at 7B size",
+        "context_length": 32768,
+        "vram_required_gb": 4.5
+      },
+      {
+        "id": "deepseek-coder-7b-instruct",
+        "description": "DeepSeek Coder 7B — strong on Python and JavaScript",
+        "context_length": 16384,
+        "vram_required_gb": 4.5
+      },
+      {
+        "id": "llama-3.2-3b-instruct",
+        "description": "Llama 3.2 3B — fast, good for planning and chat",
+        "context_length": 131072,
+        "vram_required_gb": 3.5
+      }
+    ]
+  },
+
+  "aider_config": {
+    "comment": "Add these to ~/.aider.conf.yml or pass as CLI flags",
+    "openai-api-base": "http://localhost:8081/v1",
+    "openai-api-key": "local",
+    "model": "openai/qwen2.5-coder-7b-instruct"
+  },
+
+  "opencode_config": {
+    "comment": "Add to ~/.config/opencode/config.json",
+    "provider": "openai",
+    "model": "qwen2.5-coder-7b-instruct",
+    "baseUrl": "http://localhost:8081/v1",
+    "apiKey": "local"
+  },
+
+  "env_vars": {
+    "comment": "Environment variables set by scripts/switch_provider.sh local",
+    "ACTIVE_PROVIDER": "local",
+    "LLM_BASE_URL": "http://localhost:8081/v1",
+    "LLM_API_KEY": "local",
+    "LLM_MODEL": "qwen2.5-coder-7b-instruct"
+  },
+
+  "curl_test": {
+    "comment": "Verify the server is running",
+    "models_endpoint": "curl http://localhost:8081/v1/models | python3 -m json.tool",
+    "completion_test": "curl http://localhost:8081/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\": \"qwen2.5-coder-7b-instruct\", \"messages\": [{\"role\": \"user\", \"content\": \"Write hello world in Python\"}]}'"
+  }
+}
