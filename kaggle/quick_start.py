@@ -69,8 +69,9 @@ if not key:
         "Fix: Add-ons → Secrets → toggle KAGGLE_TUNNEL_KEY to ON, then re-run."
     )
 
-with open(KEY_PATH, "w") as f:
-    f.write(key if key.endswith("\n") else key + "\n")
+with open(KEY_PATH, "w", newline="\n") as f:
+    normalized = key.replace("\r\n", "\n").replace("\r", "\n")
+    f.write(normalized if normalized.endswith("\n") else normalized + "\n")
 os.chmod(KEY_PATH, stat.S_IRUSR | stat.S_IWUSR)
 
 # Basic sanity check
