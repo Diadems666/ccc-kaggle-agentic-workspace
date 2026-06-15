@@ -69,9 +69,13 @@ if not key:
         "Fix: Add-ons → Secrets → toggle KAGGLE_TUNNEL_KEY to ON, then re-run."
     )
 
+import base64 as _b64
+_key = key.strip()
+if not _key.startswith("-----"):
+    # Stored as base64 to avoid clipboard/CRLF corruption — decode it
+    _key = _b64.b64decode(_key).decode("utf-8")
 with open(KEY_PATH, "w", newline="\n") as f:
-    normalized = key.replace("\r\n", "\n").replace("\r", "\n")
-    f.write(normalized if normalized.endswith("\n") else normalized + "\n")
+    f.write(_key if _key.endswith("\n") else _key + "\n")
 os.chmod(KEY_PATH, stat.S_IRUSR | stat.S_IWUSR)
 
 # Basic sanity check
