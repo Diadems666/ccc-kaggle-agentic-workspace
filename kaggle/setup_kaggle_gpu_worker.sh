@@ -96,11 +96,13 @@ if [[ -f "$MODEL_DIR/$MODEL_NAME" ]]; then
     echo "  Already cached: $MODEL_DIR/$MODEL_NAME ($SIZE_GB) — skipping."
 else
     echo "  Downloading from $MODEL_REPO (~$([ "$GPU_COUNT" -ge 2 ] && echo "19 GB" || echo "4.5 GB"), may take 5-10 min)..."
-    # huggingface-cli is deprecated in hub>=1.10 — use `hf` (already on Kaggle)
-    HF_CMD=$(command -v hf 2>/dev/null || command -v huggingface-cli 2>/dev/null)
-    "$HF_CMD" download "$MODEL_REPO" "$MODEL_NAME" \
-        --local-dir "$MODEL_DIR" \
-        --local-dir-use-symlinks False
+    # `hf` (hub>=1.10) dropped --local-dir-use-symlinks; huggingface-cli kept it
+    if command -v hf &>/dev/null; then
+        hf download "$MODEL_REPO" "$MODEL_NAME" --local-dir "$MODEL_DIR"
+    else
+        huggingface-cli download "$MODEL_REPO" "$MODEL_NAME" \
+            --local-dir "$MODEL_DIR" --local-dir-use-symlinks False
+    fi
     echo "  Download complete."
 fi
 
