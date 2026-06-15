@@ -91,13 +91,26 @@ echo "  $(mimo --version 2>/dev/null || echo 'mimo not available')"
 echo "[5/6] Downloading model (Q4_K_M from $MODEL_REPO)..."
 mkdir -p "$MODEL_DIR"
 
-# Check if any Q4_K_M file already exists in model dir
+# Priority 1: already in model dir (previous run in same session)
 if ls "$MODEL_DIR"/*[Qq]4[_-][Kk][_-][Mm]*.gguf 2>/dev/null | grep -q .; then
     echo "  Q4_K_M model already cached in $MODEL_DIR — skipping."
-    # Point MODEL_NAME at the first shard (for server startup later)
     FIRST_SHARD=$(ls "$MODEL_DIR"/*[Qq]4[_-][Kk][_-][Mm]*.gguf 2>/dev/null | sort | head -1)
     MODEL_NAME=$(basename "$FIRST_SHARD")
     export MODEL_NAME
+
+# Priority 2: attached Kaggle Dataset under /kaggle/input/ — symlink, no download
+elif INPUT_SHARD=$(find /kaggle/input -name "*q4_k_m*.gguf" -o -name "*Q4_K_M*.gguf" 2>/dev/null | sort | head -1) && [[ -n "$INPUT_SHARD" ]]; then
+    echo "  Found model in /kaggle/input/ — symlinking to $MODEL_DIR (no download needed)"
+    for f in $(find /kaggle/input -name "*q4_k_m*.gguf" -o -name "*Q4_K_M*.gguf" 2>/dev/null | sort); do
+        ln -sf "$f" "$MODEL_DIR/$(basename "$f")"
+        echo "    → $(basename "$f")"
+    done
+    FIRST_SHARD=$(ls "$MODEL_DIR"/*[Qq]4[_-][Kk][_-][Mm]*.gguf 2>/dev/null | sort | head -1)
+    MODEL_NAME=$(basename "$FIRST_SHARD")
+    export MODEL_NAME
+    echo "  Model ready (from dataset): $MODEL_NAME"
+
+# Priority 3: download from HuggingFace
 else
     echo "  Discovering Q4_K_M files in $MODEL_REPO..."
     GGUF_FILES=$(python3 - <<'PYEOF'

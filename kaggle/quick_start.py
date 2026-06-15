@@ -117,11 +117,17 @@ os.environ.update({
 step(3, "Checking model cache and installing dependencies")
 
 def _find_model_file(model_dir):
-    """Return path to the first Q4_K_M shard (or single file) on disk."""
+    """Return path to the first Q4_K_M shard (or single file) on disk.
+    Checks model_dir first, then /kaggle/input/ (attached dataset)."""
     import glob
-    gguf = sorted(f for f in glob.glob(f"{model_dir}/*.gguf") if 'q4_k_m' in f.lower())
-    shards = [f for f in gguf if '-of-' in f]
-    return (shards or gguf or [None])[0]
+    for search in [f"{model_dir}/*.gguf", "/kaggle/input/**/*.gguf"]:
+        recursive = "**" in search
+        gguf = sorted(f for f in glob.glob(search, recursive=recursive) if 'q4_k_m' in f.lower())
+        shards = [f for f in gguf if '-of-' in f]
+        found = (shards or gguf or [None])[0]
+        if found:
+            return found
+    return None
 
 model_path = f"{MODEL_DIR}/{MODEL_NAME}"
 existing = _find_model_file(MODEL_DIR)
