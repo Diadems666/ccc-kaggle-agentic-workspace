@@ -51,8 +51,10 @@ apt-get install -qq -y openssh-client cmake build-essential curl \
 # @mimo-ai/cli requires Node.js 18+. Ubuntu 22.04's default is Node 12 — upgrade.
 NODE_MAJOR=$(node --version 2>/dev/null | tr -d 'v' | cut -d. -f1 || echo "0")
 if [[ "$NODE_MAJOR" -lt 18 ]]; then
-    echo "  Node.js ${NODE_MAJOR} detected, installing Node.js 20..."
+    echo "  Node.js ${NODE_MAJOR} detected, upgrading to Node.js 20..."
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null 2>&1
+    # libnode-dev from Ubuntu's old Node 12 blocks the upgrade — remove it first
+    apt-get remove -y libnode-dev libnode72 2>/dev/null || true
     apt-get install -y -q nodejs 2>/dev/null || true
 fi
 echo "  Node.js $(node --version 2>/dev/null || echo 'unavailable')"
@@ -94,7 +96,9 @@ if [[ -f "$MODEL_DIR/$MODEL_NAME" ]]; then
     echo "  Already cached: $MODEL_DIR/$MODEL_NAME ($SIZE_GB) — skipping."
 else
     echo "  Downloading from $MODEL_REPO (~$([ "$GPU_COUNT" -ge 2 ] && echo "19 GB" || echo "4.5 GB"), may take 5-10 min)..."
-    huggingface-cli download "$MODEL_REPO" "$MODEL_NAME" \
+    # huggingface-cli is deprecated in hub>=1.10 — use `hf` (already on Kaggle)
+    HF_CMD=$(command -v hf 2>/dev/null || command -v huggingface-cli 2>/dev/null)
+    "$HF_CMD" download "$MODEL_REPO" "$MODEL_NAME" \
         --local-dir "$MODEL_DIR" \
         --local-dir-use-symlinks False
     echo "  Download complete."
