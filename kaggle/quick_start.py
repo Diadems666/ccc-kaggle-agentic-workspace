@@ -41,7 +41,13 @@ def run(cmd, **kwargs):
 # ── Step 1: Write SSH key from Kaggle secret ──────────────────────────────────
 step(1, "Loading SSH tunnel key from Kaggle secret")
 
-key = os.environ.get("KAGGLE_TUNNEL_KEY", "")
+key = ""
+try:
+    from kaggle_secrets import UserSecretsClient
+    key = UserSecretsClient().get_secret("KAGGLE_TUNNEL_KEY")
+except Exception:
+    key = os.environ.get("KAGGLE_TUNNEL_KEY", "")
+
 if not key:
     raise RuntimeError(
         "KAGGLE_TUNNEL_KEY secret not found.\n"
