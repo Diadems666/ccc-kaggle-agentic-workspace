@@ -13,7 +13,7 @@ Config — only change these if your VPS details differ:
 
 VPS_HOST            = os.environ.get("VPS_HOST", "112.213.38.79")
 VPS_USER            = os.environ.get("VPS_USER", "kaggle-gpu")
-VPS_PORT            = int(os.environ.get("VPS_PORT", "2222"))  # port 22 is blocked outbound from Kaggle
+VPS_PORT            = int(os.environ.get("VPS_PORT", "22"))
 VPS_TUNNEL_PORT     = int(os.environ.get("VPS_TUNNEL_PORT", "8081"))
 LOCAL_LLM_PORT      = int(os.environ.get("LOCAL_LLM_PORT", "8080"))
 MODEL_NAME          = os.environ.get("MODEL_NAME", "qwen2.5-coder-7b-instruct-q4_k_m.gguf")

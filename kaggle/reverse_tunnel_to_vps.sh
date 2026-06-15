@@ -15,7 +15,7 @@ set -uo pipefail
 VPS_HOST="${VPS_HOST:?VPS_HOST not set. Export VPS_HOST=your.vps.ip}"
 VPS_USER="${VPS_USER:-kaggle-gpu}"
 # Port 2222 is used because Kaggle notebooks block outbound TCP port 22.
-VPS_PORT="${VPS_PORT:-2222}"
+VPS_PORT="${VPS_PORT:-22}"
 KEY_PATH="${KAGGLE_TUNNEL_KEY_PATH:-/tmp/kaggle_tunnel_key}"
 LOCAL_PORT="${LOCAL_LLM_PORT:-8080}"
 REMOTE_PORT="${VPS_TUNNEL_PORT:-8081}"
