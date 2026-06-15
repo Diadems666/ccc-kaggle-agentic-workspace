@@ -111,13 +111,32 @@ os.environ.update({
 # ── Step 3: Install deps + download model ────────────────────────────────────
 step(3, "Checking model cache and installing dependencies")
 
+def _find_model_file(model_dir):
+    """Return path to the first Q4_K_M shard (or single file) on disk."""
+    import glob
+    gguf = sorted(f for f in glob.glob(f"{model_dir}/*.gguf") if 'q4_k_m' in f.lower())
+    shards = [f for f in gguf if '-of-' in f]
+    return (shards or gguf or [None])[0]
+
 model_path = f"{MODEL_DIR}/{MODEL_NAME}"
-if os.path.exists(model_path):
-    size_gb = os.path.getsize(model_path) / 1e9
-    print(f"  Model already cached: {model_path} ({size_gb:.1f} GB) — skipping download")
+existing = _find_model_file(MODEL_DIR)
+
+if existing:
+    size_gb = os.path.getsize(existing) / 1e9
+    MODEL_NAME = os.path.basename(existing)
+    os.environ["MODEL_NAME"] = MODEL_NAME
+    print(f"  Model cached: {existing} ({size_gb:.1f} GB)")
 else:
-    print(f"  Model not found — running setup (downloads ~4 GB, takes ~5 min)...")
+    print(f"  Model not found — running setup...")
     run(["bash", f"{WORKSPACE_DIR}/kaggle/setup_kaggle_gpu_worker.sh"])
+    # Re-scan: setup may have downloaded split shards with different filenames
+    existing = _find_model_file(MODEL_DIR)
+    if existing:
+        MODEL_NAME = os.path.basename(existing)
+        os.environ["MODEL_NAME"] = MODEL_NAME
+        print(f"  Model ready: {MODEL_NAME}")
+    else:
+        raise RuntimeError(f"Setup completed but no Q4_K_M .gguf found in {MODEL_DIR}")
 
 # ── Step 4: Start LLM server in background ───────────────────────────────────
 step(4, "Starting LLM inference server")

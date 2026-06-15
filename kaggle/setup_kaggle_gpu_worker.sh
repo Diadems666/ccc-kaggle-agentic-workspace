@@ -110,6 +110,11 @@ try:
         f for f in list_repo_files(repo)
         if ("q4_k_m" in f.lower() or "Q4_K_M" in f) and f.endswith(".gguf")
     )
+    # If split shards exist, skip the combined file — it's identical content
+    # and downloading both would double disk usage (2×19 GB on a 20 GB volume)
+    has_shards = any("-of-" in f for f in files)
+    if has_shards:
+        files = [f for f in files if "-of-" in f]
     print("\n".join(files))
 except Exception as e:
     print(f"ERROR: {e}", file=sys.stderr)
@@ -126,7 +131,8 @@ PYEOF
     echo "$GGUF_FILES" | while read -r f; do echo "    $f"; done
     echo "  (~$([ "$GPU_COUNT" -ge 2 ] && echo "19 GB" || echo "4.5 GB"), may take 10-20 min)..."
 
-    # Download each shard
+    # Download each shard — cache goes to /tmp to keep model dir free
+    export HF_HUB_CACHE=/tmp/hf_cache
     while IFS= read -r FNAME; do
         [[ -z "$FNAME" ]] && continue
         echo "  Fetching: $FNAME"
