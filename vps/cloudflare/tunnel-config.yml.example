@@ -1,0 +1,27 @@
+# Cloudflare Tunnel configuration example.
+# Actual file lives at /etc/cloudflared/config.yml on the VPS.
+# Replace placeholders with your real values.
+
+# Your tunnel ID (from Cloudflare Zero Trust → Tunnels)
+tunnel: YOUR_TUNNEL_ID_HERE
+
+# Tunnel credentials file (created automatically by cloudflared service install)
+credentials-file: /etc/cloudflared/YOUR_TUNNEL_ID_HERE.json
+
+# Ingress rules — routes traffic to the right local service
+ingress:
+  # Main coding IDE
+  - hostname: coding.cairnscustomcomputers.cloud
+    service: http://localhost:8080
+    originRequest:
+      # WebSocket required for code-server
+      noTLSVerify: false
+      connectTimeout: 30s
+      keepAliveConnections: 10
+
+  # Catch-all — required by cloudflared, returns 404 for unmatched
+  - service: http_status:404
+
+# Logging
+loglevel: info
+logfile: /var/log/cloudflared.log

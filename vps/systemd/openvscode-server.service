@@ -1,0 +1,21 @@
+[Unit]
+Description=OpenVSCode Server — VS Code upstream in browser
+After=network.target
+
+[Service]
+Type=exec
+User=deploy
+WorkingDirectory=/home/deploy
+ExecStart=/opt/openvscode-server/bin/openvscode-server \
+    --host 127.0.0.1 \
+    --port 3000 \
+    --without-connection-token
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=openvscode-server
+EnvironmentFile=-/opt/coding-workspace/.env
+
+[Install]
+WantedBy=multi-user.target

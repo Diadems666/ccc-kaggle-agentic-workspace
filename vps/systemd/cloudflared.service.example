@@ -1,0 +1,23 @@
+# Example cloudflared systemd service.
+# The actual service is installed automatically by:
+#   cloudflared service install TOKEN
+# which creates /etc/systemd/system/cloudflared.service
+#
+# This file is for reference only.
+
+[Unit]
+Description=Cloudflare Tunnel
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/cloudflared --no-autoupdate tunnel run
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=0
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cloudflared
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,18 @@
+[Unit]
+Description=code-server — VS Code in browser
+After=network.target
+
+[Service]
+Type=exec
+User=deploy
+WorkingDirectory=/home/deploy
+ExecStart=/usr/bin/code-server --config /home/deploy/.config/code-server/config.yaml
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=code-server
+EnvironmentFile=-/opt/coding-workspace/.env
+
+[Install]
+WantedBy=multi-user.target
