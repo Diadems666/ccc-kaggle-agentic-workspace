@@ -88,22 +88,61 @@ npm install -g @mimo-ai/cli 2>/dev/null || \
 echo "  $(mimo --version 2>/dev/null || echo 'mimo not available')"
 
 # ─── Download model ───────────────────────────────────────────────────────────
-echo "[5/6] Downloading model: $MODEL_NAME"
+echo "[5/6] Downloading model (Q4_K_M from $MODEL_REPO)..."
 mkdir -p "$MODEL_DIR"
 
-if [[ -f "$MODEL_DIR/$MODEL_NAME" ]]; then
-    SIZE_GB=$(du -sh "$MODEL_DIR/$MODEL_NAME" | cut -f1)
-    echo "  Already cached: $MODEL_DIR/$MODEL_NAME ($SIZE_GB) — skipping."
+# Check if any Q4_K_M file already exists in model dir
+if ls "$MODEL_DIR"/*[Qq]4[_-][Kk][_-][Mm]*.gguf 2>/dev/null | grep -q .; then
+    echo "  Q4_K_M model already cached in $MODEL_DIR — skipping."
+    # Point MODEL_NAME at the first shard (for server startup later)
+    FIRST_SHARD=$(ls "$MODEL_DIR"/*[Qq]4[_-][Kk][_-][Mm]*.gguf 2>/dev/null | sort | head -1)
+    MODEL_NAME=$(basename "$FIRST_SHARD")
+    export MODEL_NAME
 else
-    echo "  Downloading from $MODEL_REPO (~$([ "$GPU_COUNT" -ge 2 ] && echo "19 GB" || echo "4.5 GB"), may take 5-10 min)..."
-    # `hf` (hub>=1.10) dropped --local-dir-use-symlinks; huggingface-cli kept it
-    if command -v hf &>/dev/null; then
-        hf download "$MODEL_REPO" "$MODEL_NAME" --local-dir "$MODEL_DIR"
-    else
-        huggingface-cli download "$MODEL_REPO" "$MODEL_NAME" \
-            --local-dir "$MODEL_DIR" --local-dir-use-symlinks False
+    echo "  Discovering Q4_K_M files in $MODEL_REPO..."
+    GGUF_FILES=$(python3 - <<'PYEOF'
+import sys
+try:
+    from huggingface_hub import list_repo_files
+    import os
+    repo = os.environ.get("MODEL_REPO", "")
+    files = sorted(
+        f for f in list_repo_files(repo)
+        if ("q4_k_m" in f.lower() or "Q4_K_M" in f) and f.endswith(".gguf")
+    )
+    print("\n".join(files))
+except Exception as e:
+    print(f"ERROR: {e}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+)
+
+    if [[ -z "$GGUF_FILES" ]]; then
+        echo "  ERROR: No Q4_K_M .gguf files found in $MODEL_REPO"
+        exit 1
     fi
-    echo "  Download complete."
+
+    echo "  Files to download:"
+    echo "$GGUF_FILES" | while read -r f; do echo "    $f"; done
+    echo "  (~$([ "$GPU_COUNT" -ge 2 ] && echo "19 GB" || echo "4.5 GB"), may take 10-20 min)..."
+
+    # Download each shard
+    while IFS= read -r FNAME; do
+        [[ -z "$FNAME" ]] && continue
+        echo "  Fetching: $FNAME"
+        if command -v hf &>/dev/null; then
+            hf download "$MODEL_REPO" "$FNAME" --local-dir "$MODEL_DIR"
+        else
+            huggingface-cli download "$MODEL_REPO" "$FNAME" \
+                --local-dir "$MODEL_DIR" --local-dir-use-symlinks False
+        fi
+    done <<< "$GGUF_FILES"
+
+    # Set MODEL_NAME to first shard for server startup
+    FIRST_SHARD=$(echo "$GGUF_FILES" | sort | head -1)
+    MODEL_NAME=$(basename "$FIRST_SHARD")
+    export MODEL_NAME
+    echo "  Download complete. Server will load: $MODEL_NAME"
 fi
 
 # ─── Write SSH config ─────────────────────────────────────────────────────────
