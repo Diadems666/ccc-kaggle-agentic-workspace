@@ -13,6 +13,7 @@ import argparse
 import datetime
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -109,11 +110,26 @@ def close_tunnel():
         print("  [watchdog] No tunnel process found (already closed?).")
 
 
+def _sigterm_handler(signum, frame):
+    """
+    Intercept SIGTERM from Kaggle's container orchestrator.
+    We get ~30 seconds before SIGKILL — save state immediately.
+    """
+    print("\n[watchdog] SIGTERM received — emergency save initiated")
+    save_state()
+    close_tunnel()
+    print("[watchdog] State saved. Exiting.")
+    sys.exit(0)
+
+
 def main():
     args = parse_args()
     session_start = datetime.datetime.now()
     saved = False
     closed = False
+
+    # Register SIGTERM handler so Kaggle's termination signal triggers a save
+    signal.signal(signal.SIGTERM, _sigterm_handler)
 
     print("=== Kaggle Session Watchdog ===")
     print(f"Session start:      {session_start.strftime('%H:%M:%S')}")
@@ -121,6 +137,7 @@ def main():
     print(f"Save state at:      {args.save_at} minutes remaining")
     print(f"Close tunnel at:    {args.close_at} minutes remaining")
     print(f"Alert webhook:      {os.environ.get('ALERT_WEBHOOK_URL') or os.environ.get('NTFY_TOPIC') or 'not configured'}")
+    print(f"SIGTERM handler:    active")
     print("")
 
     while True:

@@ -24,7 +24,7 @@ WORKSPACE_DIR       = "/tmp/ws"
 ALERT_WEBHOOK_URL   = os.environ.get("ALERT_WEBHOOK_URL", "")
 
 # ── imports ───────────────────────────────────────────────────────────────────
-import os, stat, subprocess, threading, time, sys
+import os, stat, subprocess, threading, time, sys, json
 try:
     import urllib.request
 except ImportError:
@@ -37,6 +37,21 @@ def step(n, msg):
 
 def run(cmd, **kwargs):
     return subprocess.run(cmd, check=True, **kwargs)
+
+# ── Auto-select model based on GPU count ─────────────────────────────────────
+try:
+    _gpu_lines = subprocess.check_output(
+        ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+        stderr=subprocess.DEVNULL, text=True
+    ).strip().splitlines()
+    _gpu_count = len(_gpu_lines)
+except Exception:
+    _gpu_count = 1
+
+if _gpu_count >= 2 and not os.environ.get("MODEL_NAME"):
+    MODEL_NAME = "qwen2.5-coder-32b-q4_k_m.gguf"
+    MODEL_REPO = "Qwen/Qwen2.5-Coder-32B-Instruct-GGUF"
+    print(f"Dual T4 detected — upgrading to 32B model across {_gpu_count} GPUs")
 
 # ── Step 1: Write SSH key from Kaggle secret ──────────────────────────────────
 step(1, "Loading SSH tunnel key from Kaggle secret")
@@ -139,8 +154,68 @@ for i in range(72):  # up to 6 minutes
 if not ready:
     print("  WARNING: Server did not respond in 6 min. Opening tunnel anyway.")
 
-# ── Step 5: Start watchdog in background ─────────────────────────────────────
-step(5, "Starting session watchdog (auto-saves before 12h timeout)")
+# ── Step 5: Configure MiMo Code agent harness ────────────────────────────────
+step(5, "Configuring MiMo Code")
+
+mimo_config = {
+    "agents": {
+        "coder": {
+            "model": f"local/{MODEL_NAME.replace('.gguf', '')}",
+            "endpoint": f"http://127.0.0.1:{LOCAL_LLM_PORT}/v1",
+            "reasoningEffort": "high"
+        },
+        "plan": {
+            "model": f"local/{MODEL_NAME.replace('.gguf', '')}",
+            "endpoint": f"http://127.0.0.1:{LOCAL_LLM_PORT}/v1",
+            "reasoningEffort": "low"
+        }
+    },
+    "tui": {"theme": "mimo-dark"}
+}
+
+mimo_dir = os.path.expanduser("~/.mimo")
+os.makedirs(mimo_dir, exist_ok=True)
+with open(f"{mimo_dir}/config.json", "w") as f:
+    json.dump(mimo_config, f, indent=2)
+print(f"  MiMo config written to {mimo_dir}/config.json")
+print(f"  Endpoint: http://127.0.0.1:{LOCAL_LLM_PORT}/v1")
+print(f"  Model: {MODEL_NAME}")
+
+# Check if mimo CLI is available
+try:
+    v = subprocess.check_output(["mimo", "--version"], stderr=subprocess.DEVNULL, text=True).strip()
+    print(f"  mimo CLI: {v}")
+    print("  Launch agent: mimo  (in a tmate terminal — see next step)")
+except FileNotFoundError:
+    print("  mimo CLI not installed — run setup_kaggle_gpu_worker.sh to install it")
+
+# ── Step 6: tmate SSH tunnel (optional — direct terminal access) ──────────────
+step(6, "Starting tmate SSH tunnel")
+
+try:
+    tmate_dir = "/tmp/tmate-2.4.0-static-linux-amd64"
+    tmate_bin = f"{tmate_dir}/tmate"
+    tmate_sock = "/tmp/tmate.sock"
+
+    if not os.path.exists(tmate_bin):
+        tmate_url = "https://github.com/tmate-io/tmate/releases/download/2.4.0/tmate-2.4.0-static-linux-amd64.tar.xz"
+        run(["bash", "-c", f"wget -qO- {tmate_url} | tar xJ -C /tmp/"])
+
+    run([tmate_bin, "-S", tmate_sock, "new-session", "-d"])
+    run([tmate_bin, "-S", tmate_sock, "wait", "tmate-ready"])
+    ssh_str = subprocess.check_output(
+        [tmate_bin, "-S", tmate_sock, "display", "-p", "#{tmate_ssh}"],
+        text=True
+    ).strip()
+    print(f"  SSH into this Kaggle container:")
+    print(f"  {ssh_str}")
+    print("  Use this terminal to run: mimo")
+    print("                         or: nvidia-smi  (live GPU stats)")
+except Exception as e:
+    print(f"  tmate unavailable ({e}) — skipping")
+
+# ── Step 7: Start watchdog in background ─────────────────────────────────────
+step(7, "Starting session watchdog (auto-saves before 12h timeout)")
 
 threading.Thread(
     target=lambda: subprocess.run(
@@ -148,10 +223,10 @@ threading.Thread(
     ),
     daemon=True
 ).start()
-print("  Watchdog running (saves to GitHub at 30 min remaining, closes tunnel at 10 min)")
+print("  Watchdog running (SIGTERM handler active, saves at 30 min remaining)")
 
-# ── Step 6: Open reverse tunnel — keeps cell alive ───────────────────────────
-step(6, f"Opening reverse SSH tunnel → VPS port {VPS_TUNNEL_PORT}")
+# ── Step 8: Open reverse tunnel — keeps cell alive ───────────────────────────
+step(8, f"Opening reverse SSH tunnel → VPS port {VPS_TUNNEL_PORT}")
 
 print(f"""
   Kaggle GPU  localhost:{LOCAL_LLM_PORT}
