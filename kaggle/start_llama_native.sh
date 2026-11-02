@@ -70,7 +70,6 @@ fi
 has_flag '--jinja'            && ARGS+=(--jinja)
 has_flag '--reasoning-format' && ARGS+=(--reasoning-format deepseek)
 has_flag '--chat-template-kwargs' && ARGS+=(--chat-template-kwargs "$THINK_JSON")
-has_flag '--no-webui'         && ARGS+=(--no-webui)
 
 if [[ -n "${LLM_API_KEY:-}" ]]; then
     ARGS+=(--api-key "$LLM_API_KEY")
