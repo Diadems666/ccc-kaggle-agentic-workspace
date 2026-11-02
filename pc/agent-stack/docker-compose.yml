@@ -51,18 +51,33 @@ services:
     mem_limit: 2g
 
   ccc-tools:
-    build: ./tools
+    build:
+      context: ./tools
+      dockerfile: Dockerfile.full
     restart: unless-stopped
     environment:
       SEARXNG_URL: ${SEARXNG_URL:-http://host.docker.internal:8888}
       WORKSPACE_ROOT: /workspace
+      MEMORY_DB: /data/memory.db
     volumes:
       - ${WORKSPACE_DIR:-C:/Users/spent/ccc-workspace}:/workspace
+      - ccc-memory:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:8775:8765"
     mem_limit: 512m
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - openhands
+    mem_limit: 128m
+
 volumes:
   openhands-state:
+  ccc-memory:

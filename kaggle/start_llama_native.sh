@@ -71,6 +71,12 @@ has_flag '--jinja'            && ARGS+=(--jinja)
 has_flag '--reasoning-format' && ARGS+=(--reasoning-format deepseek)
 has_flag '--chat-template-kwargs' && ARGS+=(--chat-template-kwargs "$THINK_JSON")
 
+# Agent workloads resend a long, mostly identical prompt every turn: reuse the KV cache,
+# and use larger physical batches for faster prefill on the T4s.
+has_flag '--cache-reuse' && ARGS+=(--cache-reuse 256)
+if has_flag '--ubatch-size'; then ARGS+=(-b "${BATCH:-2048}" -ub "${UBATCH:-1024}"); fi
+has_flag '--metrics' && ARGS+=(--metrics)
+
 if [[ -n "${LLM_API_KEY:-}" ]]; then
     ARGS+=(--api-key "$LLM_API_KEY")
 fi
