@@ -13,11 +13,14 @@ import httpx
 import trafilatura
 from fastmcp import FastMCP
 
+import fs_tools
+
 SEARXNG_URL: str = os.environ.get("SEARXNG_URL", "http://host.docker.internal:8888")
 MAX_CHARS: int = int(os.environ.get("FETCH_MAX_CHARS", "12000"))
 USER_AGENT: str = "Mozilla/5.0 (compatible; CCC-Agent/1.0)"
 
 mcp = FastMCP("ccc-research-tools")
+fs_tools.register(mcp)
 
 
 async def _search(query: str, limit: int, categories: str, time_range: str) -> list[dict[str, Any]]:

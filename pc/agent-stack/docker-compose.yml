@@ -37,6 +37,7 @@ services:
       AGENT_SERVER_IMAGE_REPOSITORY: ghcr.io/openhands/agent-server
       AGENT_SERVER_IMAGE_TAG: ${AGENT_SERVER_TAG:-1.26.0-python}
       LOG_ALL_EVENTS: "true"
+      SANDBOX_VOLUMES: ${WORKSPACE_DIR:-C:/Users/spent/ccc-workspace}:/workspace:rw
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - openhands-state:/.openhands
@@ -54,6 +55,9 @@ services:
     restart: unless-stopped
     environment:
       SEARXNG_URL: ${SEARXNG_URL:-http://host.docker.internal:8888}
+      WORKSPACE_ROOT: /workspace
+    volumes:
+      - ${WORKSPACE_DIR:-C:/Users/spent/ccc-workspace}:/workspace
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
