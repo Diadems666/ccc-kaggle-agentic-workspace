@@ -49,5 +49,16 @@ services:
         condition: service_healthy
     mem_limit: 2g
 
+  ccc-tools:
+    build: ./tools
+    restart: unless-stopped
+    environment:
+      SEARXNG_URL: ${SEARXNG_URL:-http://host.docker.internal:8888}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8775:8765"
+    mem_limit: 512m
+
 volumes:
   openhands-state:
