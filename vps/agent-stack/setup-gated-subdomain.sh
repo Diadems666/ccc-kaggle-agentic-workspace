@@ -9,7 +9,7 @@ set -euo pipefail
 #   CF_ACCOUNT_ID    Cloudflare account id
 # Optional:
 #   SUBDOMAIN        default kaggle.tropicops.cloud
-#   ALLOWED_EMAILS   comma-separated, default spent.memory@gmail.com
+#   ALLOWED_EMAILS   comma-separated, default joe.venner@hotmail.com
 #   ORIGIN           default http://localhost:3000 (OpenHands)
 #   CLOUDFLARED_CONFIG default /etc/cloudflared/config.yml
 #   SESSION_DURATION default 24h
@@ -19,7 +19,7 @@ set -euo pipefail
 # and exits non-zero if it is not.
 
 SUBDOMAIN="${SUBDOMAIN:-kaggle.tropicops.cloud}"
-ALLOWED_EMAILS="${ALLOWED_EMAILS:-spent.memory@gmail.com}"
+ALLOWED_EMAILS="${ALLOWED_EMAILS:-joe.venner@hotmail.com}"
 ORIGIN="${ORIGIN:-http://localhost:3000}"
 CFG="${CLOUDFLARED_CONFIG:-/etc/cloudflared/config.yml}"
 SESSION_DURATION="${SESSION_DURATION:-24h}"
