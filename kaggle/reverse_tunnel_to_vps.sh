@@ -42,6 +42,15 @@ if [[ ! -f "$KEY_PATH" ]]; then
 fi
 chmod 600 "$KEY_PATH"
 
+# Fail fast on a passphrase-protected key: ssh cannot prompt here, so it would just
+# drop every login and fail2ban on the VPS would ban this Kaggle IP.
+if command -v ssh-keygen &>/dev/null && ! ssh-keygen -y -P "" -f "$KEY_PATH" >/dev/null 2>&1; then
+    echo "ERROR: $KEY_PATH is passphrase-protected or invalid. Use a key made with: ssh-keygen -t ed25519 -N '' ..."
+    exit 1
+fi
+MAX_FAILS="${TUNNEL_MAX_FAILS:-8}"   # consecutive failures before giving up (protects the VPS from ban loops)
+FAILS=0
+
 if [[ -n "$HOST_KEY" ]]; then
     printf '%s\n' "$HOST_KEY" > "$KNOWN_HOSTS"
     SSH_HOST_OPTS=(-o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KNOWN_HOSTS")
@@ -109,6 +118,7 @@ echo ""
 ATTEMPT=0
 while true; do
     ATTEMPT=$((ATTEMPT + 1))
+    ATTEMPT_START=$SECONDS
     echo "[attempt $ATTEMPT] Connecting to $VPS_USER@$VPS_HOST:$VPS_PORT..."
     > "$SSH_LOG"
 
@@ -127,6 +137,12 @@ while true; do
 
     echo "[attempt $ATTEMPT] Tunnel exited (code $EXIT_CODE). Last SSH log:"
     tail -10 "$SSH_LOG" | sed 's/^/  /'
-    echo "Reconnecting in 10 seconds..."
-    sleep 10
+    if (( SECONDS - ATTEMPT_START < 60 )); then FAILS=$((FAILS + 1)); else FAILS=0; fi
+    if (( FAILS >= MAX_FAILS )); then
+        echo "ERROR: $FAILS quick failures in a row - giving up so the VPS firewall does not ban this IP."
+        exit 1
+    fi
+    DELAY=$(( 10 * (FAILS + 1) )); (( DELAY > 120 )) && DELAY=120
+    echo "Reconnecting in ${DELAY} seconds..."
+    sleep "$DELAY"
 done
