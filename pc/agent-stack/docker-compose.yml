@@ -1,0 +1,53 @@
+# CCC agent stack on the Windows PC (Docker Desktop): LiteLLM gateway + OpenHands.
+#
+# Why the PC and not web01: web01 is a 2 GB / 20 GB server hosting client sites.
+# The Kaggle GPU (Qwen3.8-27B) is reached through the gated hostname
+# https://kaggle.tropicops.cloud using a Cloudflare Access service token.
+#
+# Everything is published on 127.0.0.1 only. OpenHands mounts the Docker socket
+# (root-equivalent inside Docker Desktop's VM), so do not expose it publicly.
+#
+# Start with:  powershell -ExecutionPolicy Bypass -File start-agent-stack.ps1
+
+name: ccc-agent
+
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:${LITELLM_TAG:-main-stable}
+    restart: unless-stopped
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?run start-agent-stack.ps1}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./litellm_config.rendered.yaml:/app/config.yaml:ro
+    ports:
+      - "127.0.0.1:4000:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:4000/health/liveliness',timeout=3)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    mem_limit: 1g
+
+  openhands:
+    image: docker.openhands.dev/openhands/openhands:${OPENHANDS_TAG:-1.8}
+    restart: unless-stopped
+    environment:
+      AGENT_SERVER_IMAGE_REPOSITORY: ghcr.io/openhands/agent-server
+      AGENT_SERVER_IMAGE_TAG: ${AGENT_SERVER_TAG:-1.26.0-python}
+      LOG_ALL_EVENTS: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - openhands-state:/.openhands
+    ports:
+      - "127.0.0.1:${OPENHANDS_PORT:-3100}:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      litellm:
+        condition: service_healthy
+    mem_limit: 2g
+
+volumes:
+  openhands-state:

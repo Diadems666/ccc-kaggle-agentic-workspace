@@ -232,6 +232,17 @@ def load_secret(name: str, required: bool = False) -> str:
         value = UserSecretsClient().get_secret(name)
     except Exception:  # noqa: BLE001 - secret missing / not on Kaggle
         value = os.environ.get(name, "")
+    if not value:
+        # CLI-friendly fallback: a private dataset holding a file named <name>
+        # (the Kaggle CLI cannot attach notebook Secrets).
+        import glob
+
+        for candidate in sorted(glob.glob(f"/kaggle/input/**/{name}", recursive=True)):
+            with open(candidate, encoding="utf-8") as fh:
+                value = fh.read().strip()
+            if value:
+                print(f"  {name} loaded from dataset file")
+                break
     if required and not value:
         raise RuntimeError(
             f"{name} secret not found. Add-ons -> Secrets -> enable {name}, then re-run."
@@ -466,9 +477,9 @@ def main() -> int:  # noqa: C901 - linear orchestration, kept in one place on pu
             os.environ,
             VPS_HOST=vps_host,
             VPS_USER=os.environ.get("VPS_USER", "kaggle-gpu"),
-            VPS_PORT=os.environ.get("VPS_PORT", "22"),
+            VPS_PORT=os.environ.get("VPS_PORT", "2222"),
             VPS_TUNNEL_PORT=os.environ.get("VPS_TUNNEL_PORT", "8081"),
-            VPS_TUNNEL_BIND=os.environ.get("VPS_TUNNEL_BIND", "172.17.0.1"),
+            VPS_TUNNEL_BIND=os.environ.get("VPS_TUNNEL_BIND", "127.0.0.1"),
             KAGGLE_TUNNEL_KEY_PATH=KEY_PATH,
             LOCAL_LLM_PORT=str(port),
         )

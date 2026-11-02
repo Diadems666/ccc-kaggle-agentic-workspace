@@ -1,0 +1,58 @@
+# LiteLLM gateway (PC). start-agent-stack.ps1 renders this to litellm_config.rendered.yaml
+# (gitignored) by substituting the @@...@@ placeholders from kaggle-access.env.
+#
+# Aliases: ccc-local (Qwen3.8-27B on Kaggle, thinking off), ccc-local-think (thinking on),
+#          ccc-client (paid Claude -- USE FOR CLIENT WORK, never touches Kaggle), ccc-fast.
+# Kaggle's terms: personal, non-commercial use of the free GPU only.
+
+model_list:
+  - model_name: ccc-local
+    litellm_params:
+      model: openai/qwen3.8-27b
+      api_base: https://kaggle.tropicops.cloud/v1
+      api_key: local
+      extra_headers:
+        CF-Access-Client-Id: "@@CF_ACCESS_CLIENT_ID@@"
+        CF-Access-Client-Secret: "@@CF_ACCESS_CLIENT_SECRET@@"
+      timeout: 900
+      stream_timeout: 300
+      max_retries: 0
+
+  - model_name: ccc-local-think
+    litellm_params:
+      model: openai/qwen3.8-27b
+      api_base: https://kaggle.tropicops.cloud/v1
+      api_key: local
+      extra_headers:
+        CF-Access-Client-Id: "@@CF_ACCESS_CLIENT_ID@@"
+        CF-Access-Client-Secret: "@@CF_ACCESS_CLIENT_SECRET@@"
+      timeout: 1800
+      stream_timeout: 600
+      max_retries: 0
+      temperature: 1.0
+      top_p: 0.95
+      extra_body:
+        top_k: 20
+        chat_template_kwargs:
+          enable_thinking: true
+
+  - model_name: ccc-client
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: ccc-fast
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+litellm_settings:
+  drop_params: true
+  request_timeout: 1800
+  set_verbose: false
+
+router_settings:
+  num_retries: 0
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

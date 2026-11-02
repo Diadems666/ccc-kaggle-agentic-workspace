@@ -102,3 +102,6 @@ tmp/
 temp/
 .tmp/
 scratch/
+
+# rendered configs contain secrets
+*.rendered.yaml
