@@ -205,3 +205,7 @@ cat PROGRESS.md
 # Resume:
 aider --message "continue from where we left off" $(git diff HEAD~1 --name-only)
 ```
+
+## Local-model agent stack
+
+Aliases via the LiteLLM gateway: `ccc-local` (Kaggle Qwen3.8, no thinking), `ccc-local-think`, `ccc-client` (API, for client work), `ccc-fast`. Skills: `.agents/skills/deep-research`, `.agents/skills/local-model-discipline`. Research helpers: `research/searx.py`, `research/fetch.py`.

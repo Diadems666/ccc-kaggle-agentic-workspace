@@ -156,3 +156,10 @@ ufw enable
 1. Delete the tunnel in Cloudflare Zero Trust dashboard (invalidates the token)
 2. Create a new tunnel and update `/etc/cloudflared/config.yml` on VPS
 3. Restart cloudflared: `systemctl restart cloudflared`
+
+## Agent stack additions (2026-11-02)
+
+- OpenHands mounts the docker socket (root-equivalent): it must only be reachable through Cloudflare Access; it binds to 127.0.0.1.
+- The `kaggle-gpu` SSH user is forward-only: `restrict`, `permitlisten` to the docker bridge port, no TTY, `ForceCommand /bin/false`.
+- Pin the VPS host key in the notebook (`VPS_HOST_KEY`); without it the tunnel script warns and does not verify.
+- Kaggle ToS: personal, non-commercial use only. Route client work to `ccc-client`.

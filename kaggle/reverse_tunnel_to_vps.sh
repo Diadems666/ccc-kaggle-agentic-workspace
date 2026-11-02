@@ -19,11 +19,19 @@ VPS_PORT="${VPS_PORT:-22}"
 KEY_PATH="${KAGGLE_TUNNEL_KEY_PATH:-/tmp/kaggle_tunnel_key}"
 LOCAL_PORT="${LOCAL_LLM_PORT:-8080}"
 REMOTE_PORT="${VPS_TUNNEL_PORT:-8081}"
+# Address the VPS side listens on. Default "localhost" keeps the v1 behaviour.
+# The agent stack (docs/KAGGLE_QWEN38_AGENT.md) sets 172.17.0.1 (docker bridge) so
+# containers can reach the tunnel; sshd must allow it (see vps/agent-stack/).
+REMOTE_BIND="${VPS_TUNNEL_BIND:-localhost}"
+# Optional host-key pinning: export VPS_HOST_KEY='<host> ssh-ed25519 AAAA...'
+# (from `ssh-keyscan -t ed25519 <vps>` run on a trusted machine).
+HOST_KEY="${VPS_HOST_KEY:-}"
+KNOWN_HOSTS="/tmp/kaggle_known_hosts"
 SSH_LOG="/tmp/tunnel_ssh.log"
 
 echo "=== Opening reverse SSH tunnel ==="
 echo "Local:   localhost:$LOCAL_PORT (Kaggle LLM)"
-echo "Remote:  $VPS_HOST:$REMOTE_PORT (VPS)"
+echo "Remote:  $VPS_HOST ($REMOTE_BIND:$REMOTE_PORT on the VPS)"
 echo "User:    $VPS_USER  Port: $VPS_PORT"
 echo "Key:     $KEY_PATH"
 echo ""
@@ -33,6 +41,15 @@ if [[ ! -f "$KEY_PATH" ]]; then
     exit 1
 fi
 chmod 600 "$KEY_PATH"
+
+if [[ -n "$HOST_KEY" ]]; then
+    printf '%s\n' "$HOST_KEY" > "$KNOWN_HOSTS"
+    SSH_HOST_OPTS=(-o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KNOWN_HOSTS")
+    echo "Host key: pinned"
+else
+    SSH_HOST_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
+    echo "WARNING: VPS_HOST_KEY not set - host key is NOT verified (first-run convenience only)."
+fi
 
 # ─── Connectivity test ────────────────────────────────────────────────────────
 echo "Testing TCP connectivity to $VPS_HOST:$VPS_PORT ..."
@@ -96,10 +113,10 @@ while true; do
     > "$SSH_LOG"
 
     ssh -N \
-        -R "localhost:${REMOTE_PORT}:localhost:${LOCAL_PORT}" \
+        -R "${REMOTE_BIND}:${REMOTE_PORT}:localhost:${LOCAL_PORT}" \
         -i "$KEY_PATH" \
         -p "$VPS_PORT" \
-        -o StrictHostKeyChecking=no \
+        "${SSH_HOST_OPTS[@]}" \
         -o ServerAliveInterval=30 \
         -o ServerAliveCountMax=3 \
         -o ConnectTimeout=15 \

@@ -19,6 +19,12 @@ ingress:
       connectTimeout: 30s
       keepAliveConnections: 10
 
+  # OpenHands agent UI (docker socket = root-equivalent: PROTECT WITH CLOUDFLARE ACCESS)
+  - hostname: kaggle.tropicops.cloud
+    service: http://localhost:3000
+    originRequest:
+      connectTimeout: 30s
+
   # Catch-all — required by cloudflared, returns 404 for unmatched
   - service: http_status:404
 

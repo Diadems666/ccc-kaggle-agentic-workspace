@@ -1,0 +1,73 @@
+# CCC agent stack: LiteLLM gateway + SearXNG + OpenHands.
+#
+# Network model
+#   * Everything is published ONLY on the docker bridge gateway IP (BRIDGE_IP, normally
+#     172.17.0.1) and/or 127.0.0.1 -- never on a public interface.
+#   * The Kaggle reverse SSH tunnel also binds BRIDGE_IP:8081, so LiteLLM (and any
+#     container) reaches the GPU at http://host.docker.internal:8081.
+#   * OpenHands' sandbox containers reach LiteLLM and SearXNG the same way.
+#   * Humans reach OpenHands through the existing Cloudflare Tunnel + Access
+#     (ingress -> http://localhost:3000).
+#
+# Usage:  cp .env.example .env  (or run install-agent-stack.sh)  &&  docker compose up -d
+
+name: ccc-agent
+
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:${LITELLM_TAG:-main-stable}
+    restart: unless-stopped
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?run install-agent-stack.sh or set LITELLM_MASTER_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      KAGGLE_LLM_API_KEY: ${KAGGLE_LLM_API_KEY:-local}
+    volumes:
+      - ./litellm_config.yaml:/app/config.yaml:ro
+    ports:
+      - "${BRIDGE_IP:-172.17.0.1}:4000:4000"
+      - "127.0.0.1:4000:4000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:4000/health/liveliness',timeout=3)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    mem_limit: 1g
+
+  searxng:
+    image: searxng/searxng:${SEARXNG_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?run install-agent-stack.sh or set SEARXNG_SECRET}
+      SEARXNG_BASE_URL: http://host.docker.internal:8888/
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    ports:
+      - "${BRIDGE_IP:-172.17.0.1}:8888:8080"
+      - "127.0.0.1:8888:8080"
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    mem_limit: 512m
+
+  openhands:
+    image: docker.openhands.dev/openhands/openhands:${OPENHANDS_TAG:-1.8}
+    restart: unless-stopped
+    environment:
+      AGENT_SERVER_IMAGE_REPOSITORY: ghcr.io/openhands/agent-server
+      AGENT_SERVER_IMAGE_TAG: ${AGENT_SERVER_TAG:-1.26.0-python}
+      LOG_ALL_EVENTS: "true"
+    volumes:
+      # SECURITY: the docker socket is root-equivalent on this host. OpenHands needs it to
+      # spawn sandbox containers. Keep it behind Cloudflare Access (see SECURITY.md).
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${OPENHANDS_STATE_DIR:-/opt/coding-workspace/openhands}:/.openhands
+    ports:
+      - "127.0.0.1:3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      litellm:
+        condition: service_healthy
+    mem_limit: 2g

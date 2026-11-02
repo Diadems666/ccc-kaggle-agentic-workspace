@@ -50,3 +50,18 @@ Session-by-session log of work completed on this workspace.
 **Next steps**:
 - 
 ```
+
+---
+
+## 2026-11-02 - Self-hosted agent stack
+
+**Completed**:
+- Added Qwen3.8-27B/llama.cpp native build and launcher, `quick_start_v2.py` orchestrator and notebooks (`kaggle/`)
+- Added VPS agent stack: LiteLLM gateway, SearXNG, OpenHands, hardened sshd drop-in, installer (`vps/agent-stack/`)
+- Added research tools and skills (`research/`, `.agents/skills/`), status script, 18 pytest tests
+- Patched `kaggle/reverse_tunnel_to_vps.sh` (`VPS_TUNNEL_BIND`, optional host-key pinning)
+- Wrote `docs/KAGGLE_QWEN38_AGENT.md`, ADR-007, TASKS Phase 7
+
+**Not verified (needs real hardware)**: CUDA build on Kaggle, llama-server flags, tok/s, sshd PermitListen behaviour, container image tags, OpenHands LLM settings.
+
+**Next steps**: Phase 7 checklist in `TASKS.md`.

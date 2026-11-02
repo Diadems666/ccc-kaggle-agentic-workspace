@@ -189,3 +189,7 @@ Key variables:
 ## Contributing
 
 This is a private workspace for Cairns Custom Computers. Keep all credentials out of Git.
+
+## Self-hosted agent (Qwen3.8 + OpenHands)
+
+See `docs/KAGGLE_QWEN38_AGENT.md` for the design, ToS caveats, runbook and troubleshooting.

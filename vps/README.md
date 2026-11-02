@@ -44,3 +44,7 @@ bash vps/install-openvscode-server.sh   # alternative to code-server
 - Root SSH access
 - Your SSH public key ready to paste
 - Cloudflare Tunnel token (from Cloudflare Zero Trust dashboard)
+
+## Agent stack
+
+`vps/agent-stack/` holds the LiteLLM + SearXNG + OpenHands compose project. Install with `sudo bash vps/agent-stack/install-agent-stack.sh`; check with `bash scripts/agent_stack_status.sh`.

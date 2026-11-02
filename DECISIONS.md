@@ -142,3 +142,21 @@ A log of significant decisions made in building this workspace.
 - Downgrade path to Haiku 4.5 for simple/cheap tasks
 
 **Review trigger**: Reassess when new Anthropic models are released, or if costs become significant.
+
+---
+
+## ADR-007: Self-hosted agent stack (Qwen3.8-27B on Kaggle, OpenHands UI, LiteLLM gateway)
+**Date**: 2026-11-02  
+**Status**: Accepted
+
+**Context**: Want a self-hosted coding + deep-research agent that uses the free Kaggle GPU quota, with a web UI on the VPS.
+
+**Decision**:
+- Model: Qwen3.8-27B (Apache-2.0) as Unsloth GGUF, Q4_K_M, 64K context, q8_0 KV cache, served by a natively built `llama-server` (CUDA sm_75) on 2x T4. Thinking mode is off by default (`ccc-local`) and opt-in (`ccc-local-think`).
+- Gateway: LiteLLM on the VPS with stable aliases (`ccc-local`, `ccc-local-think`, `ccc-client`, `ccc-fast`). Tools talk to aliases, never to Kaggle directly, so the backend can be swapped in one setting.
+- UI: OpenHands behind Cloudflare Access; SearXNG for research (`research/searx.py`, `research/fetch.py`, `deep-research` skill).
+- Network: outbound-only reverse SSH from Kaggle, restricted sshd user, bound to the docker bridge IP.
+
+**Risk handling**: Kaggle ToS limits use to personal, non-commercial purposes and allows termination at Kaggle's discretion. Therefore: client work is routed to `ccc-client` (API, never Kaggle); no 24/7 keepalive or quota evasion; hard session cap (`SESSION_MAX_HOURS`, default 6); no auto-restart.
+
+**Consequences**: Local generation is slow (estimated 10-15 tok/s, unmeasured). v1 `kaggle/quick_start.py` is superseded by `quick_start_v2.py`. See `docs/KAGGLE_QWEN38_AGENT.md`.

@@ -153,3 +153,7 @@ model: claude/claude-sonnet-4-6
   "model": "claude-sonnet-4-6"
 }
 ```
+
+## Addendum 2026-11-02: Qwen3.8-27B on dual T4
+
+Default local model for the agent stack: `unsloth/Qwen3.8-27B-GGUF` Q4_K_M (16.5 GB), 64K context, q8_0 KV. Fallbacks chosen automatically: IQ4_XS, IQ3_XXS, IQ2_S. Throughput on 2x T4 is an unmeasured estimate of 10-15 tok/s; thinking mode multiplies output tokens, so it is off by default. See `docs/KAGGLE_QWEN38_AGENT.md`.

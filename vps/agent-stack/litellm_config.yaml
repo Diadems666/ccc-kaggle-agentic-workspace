@@ -1,0 +1,60 @@
+# LiteLLM gateway: ONE OpenAI-compatible endpoint for OpenHands and every other agent.
+#
+# Model aliases (what clients put in "model"):
+#   ccc-local        Qwen3.8-27B on the Kaggle GPU, thinking OFF  -> fast agent loops
+#   ccc-local-think  same backend, thinking ON                   -> hard reasoning, slower
+#   ccc-client       paid Anthropic model -- USE THIS FOR CLIENT WORK (never touches Kaggle)
+#   ccc-fast         cheap Anthropic model for small jobs / optional fallback
+#
+# Policy: Kaggle's terms limit the free GPU to the account owner's internal,
+# personal, non-commercial use. Anything done for or on behalf of a client goes
+# through ccc-client. See docs/KAGGLE_QWEN38_AGENT.md.
+
+model_list:
+  - model_name: ccc-local
+    litellm_params:
+      model: openai/qwen3.8-27b
+      api_base: http://host.docker.internal:8081/v1
+      api_key: os.environ/KAGGLE_LLM_API_KEY
+      timeout: 900          # long prompts on a T4 can take minutes to prefill
+      stream_timeout: 300
+      max_retries: 0
+
+  - model_name: ccc-local-think
+    litellm_params:
+      model: openai/qwen3.8-27b
+      api_base: http://host.docker.internal:8081/v1
+      api_key: os.environ/KAGGLE_LLM_API_KEY
+      timeout: 1800
+      stream_timeout: 600
+      max_retries: 0
+      temperature: 1.0      # Qwen-recommended for thinking mode
+      top_p: 0.95
+      extra_body:
+        top_k: 20
+        chat_template_kwargs:
+          enable_thinking: true
+
+  - model_name: ccc-client
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6    # edit to change the client-work model
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: ccc-fast
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001   # cheap model / optional fallback
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+litellm_settings:
+  drop_params: true          # silently drop params a backend does not support
+  request_timeout: 1800
+  set_verbose: false
+
+router_settings:
+  num_retries: 0
+  # Opt-in failover when the Kaggle session is down. Off by default so a dead GPU
+  # never silently turns into API spend. To enable, uncomment:
+  # fallbacks: [{"ccc-local": ["ccc-fast"]}, {"ccc-local-think": ["ccc-fast"]}]
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

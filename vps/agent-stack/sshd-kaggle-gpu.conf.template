@@ -1,0 +1,16 @@
+# Installed to /etc/ssh/sshd_config.d/50-kaggle-gpu.conf by install-agent-stack.sh
+# (__BRIDGE_IP__ is replaced with the docker0 gateway IP).
+#
+# The Kaggle notebook's tunnel user may do exactly one thing: expose a remote port on
+# the docker bridge so the gateway container can reach the GPU. No shell, no local
+# forwarding, no other listen addresses.
+Match User kaggle-gpu
+    AllowTcpForwarding remote
+    GatewayPorts clientspecified
+    PermitListen __BRIDGE_IP__:8081
+    PermitOpen none
+    PermitTTY no
+    X11Forwarding no
+    AllowAgentForwarding no
+    PermitTunnel no
+    ForceCommand /bin/false

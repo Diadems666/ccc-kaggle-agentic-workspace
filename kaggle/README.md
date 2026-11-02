@@ -56,3 +56,7 @@ os.environ['KAGGLE_TUNNEL_KEY'] = open('/tmp/kaggle_tunnel_key').read()
 - The key should only be authorised for port forwarding, not interactive shell access
 
 See `SECURITY.md` in the repo root for full details.
+
+## Qwen3.8 agent stack (v2)
+
+The recommended path is now `quick_start_v2.py` / `kaggle-quick-start-v2.ipynb` (native llama.cpp, Qwen3.8-27B, auto-sized for the GPUs). Build llama.cpp once with `kaggle-build-llama.ipynb`. The v1 `quick_start.py` is deprecated (it uses `os` before importing it). Full details: `../docs/KAGGLE_QWEN38_AGENT.md`.

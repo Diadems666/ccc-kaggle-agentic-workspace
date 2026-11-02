@@ -78,3 +78,15 @@ Project backlog for the CCC agentic workspace setup.
 - [ ] Enable unattended security upgrades on VPS
 - [ ] Document any custom modifications in `IMPLEMENTATION_NOTES.md`
 - [ ] Review and rotate API keys quarterly
+
+## Phase 7: Agent Stack (Qwen3.8-27B + OpenHands)
+
+- [ ] Run `kaggle/kaggle-build-llama.ipynb` once; save output as private Kaggle Dataset `llama-cpp-sm75`
+- [ ] On VPS: `sudo bash vps/agent-stack/install-agent-stack.sh`
+- [ ] Publish OpenHands gated at kaggle.tropicops.cloud: `sudo CF_API_TOKEN=... CF_ACCOUNT_ID=... bash vps/agent-stack/setup-gated-subdomain.sh`
+- [ ] Push repo to GitHub (the Kaggle notebook clones it), then `bash scripts/kaggle_deploy.sh build`, `dataset`, `worker`
+- [ ] First Kaggle shakedown with `SESSION_MAX_HOURS=1` using `kaggle/kaggle-quick-start-v2.ipynb`
+- [ ] `bash scripts/agent_stack_status.sh --smoke` passes
+- [ ] Measure real tok/s and update `MODEL_MATRIX.md` / the doc's estimates
+- [ ] Verify sshd `PermitListen` restriction works (`sshd -T -C user=kaggle-gpu`)
+- [ ] Confirm client work uses `ccc-client` only
