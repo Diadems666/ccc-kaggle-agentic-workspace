@@ -160,3 +160,9 @@ A log of significant decisions made in building this workspace.
 **Risk handling**: Kaggle ToS limits use to personal, non-commercial purposes and allows termination at Kaggle's discretion. Therefore: client work is routed to `ccc-client` (API, never Kaggle); no 24/7 keepalive or quota evasion; hard session cap (`SESSION_MAX_HOURS`, default 6); no auto-restart.
 
 **Consequences**: Local generation is slow (estimated 10-15 tok/s, unmeasured). v1 `kaggle/quick_start.py` is superseded by `quick_start_v2.py`. See `docs/KAGGLE_QWEN38_AGENT.md`.
+
+### Addendum 2026-11-03: deployment as built
+- Kaggle GPU reached via reverse SSH to web01 port 2222 (kaggle-gpu, forward-only key, `permitlisten 127.0.0.1:8081`); nginx on web01 serves `https://kaggle.tropicops.cloud` -> 127.0.0.1:8081 behind Cloudflare Access (owner email joe.venner@hotmail.com + service token for API clients). No Docker or extra RAM on web01 (2 GB / 20 GB shared server).
+- LiteLLM + OpenHands run on the Windows PC (`pc/agent-stack`, http://localhost:3100) and call the gated hostname with the Access service token.
+- Tunnel key travels in the private Kaggle dataset `ccc-tunnel-key` (CLI cannot set Secrets). The key MUST have no passphrase; the tunnel script now checks this and backs off / gives up to avoid fail2ban bans.
+- Deploy with `scripts/kaggle_deploy.sh` (check, build, dataset, key, worker, status).
