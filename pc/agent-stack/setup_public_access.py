@@ -6,7 +6,7 @@ with an email-allow policy. Writes CLOUDFLARE_TUNNEL_TOKEN into .env (never prin
 
 Usage:
   python setup_public_access.py --key-file <file with global API key> \
-      --email joe.venner@hotmail.com [--host agent.tropicops.cloud]
+      --email joe.venner@hotmail.com [--host openhands.tropicops.cloud]
 """
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ def main() -> None:
     ap.add_argument("--key-file", required=True)
     ap.add_argument("--cf-email", default="joe.venner@hotmail.com")
     ap.add_argument("--email", required=True, help="address allowed through Access")
-    ap.add_argument("--host", default="agent.tropicops.cloud")
+    ap.add_argument("--host", default="openhands.tropicops.cloud")
     ap.add_argument("--name", default="ccc-agent")
     ap.add_argument("--origin", default="http://openhands:3000")
     a = ap.parse_args()
@@ -71,6 +71,8 @@ def main() -> None:
     target = f"{tid}.cfargotunnel.com"
     recs = cf.call("GET", f"/zones/{ZONE}/dns_records?name={a.host}")["result"]
     rec = {"type": "CNAME", "name": a.host, "content": target, "proxied": True}
+    if recs and not recs[0]["content"].startswith(tid):
+        raise SystemExit(f"{a.host} already exists and points elsewhere ({recs[0]['content']}); refusing to overwrite")
     if recs:
         cf.call("PUT", f"/zones/{ZONE}/dns_records/{recs[0]['id']}", rec)
     else:
@@ -80,6 +82,8 @@ def main() -> None:
     app = next((x for x in apps if x.get("domain") == a.host), None)
     app_body = {"name": "CCC Agent (OpenHands)", "domain": a.host, "type": "self_hosted",
                 "session_duration": "24h", "app_launcher_visible": True}
+    if app and app["name"] != app_body["name"]:
+        raise SystemExit(f"Access app '{app['name']}' already owns {a.host}; refusing to overwrite")
     if app:
         app_id = app["id"]
         cf.call("PUT", f"/accounts/{ACCOUNT}/access/apps/{app_id}", app_body)
